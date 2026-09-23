@@ -194,6 +194,10 @@ h2::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
 .more { display: inline-block; margin: 18px 0 0; font-size: 15.5px; font-weight: 560;
         text-decoration: none; }
 .more:hover { text-decoration: underline; }
+/* Ссылки под карточкой стоят рядом: «Подробнее» и «Код на GitHub» — равноправные
+   входы, и вторая не должна теряться серой строкой под первой. */
+.links { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; }
+.links .more { margin-top: 18px; }
 
 /* Колонки: у групп разная высота, в сетке последняя висела бы одна. */
 .stack { column-gap: 14px; }
@@ -279,11 +283,12 @@ footer { margin-top: 60px; padding-top: 22px; border-top: 1px solid var(--rule);
 <div class="wrap">
 <p class="back"><a href="../index.html">← Все проекты</a></p>
 <header>
-  <div class="mark">Проект 5 из 15 по сложности</div>
+  <div class="mark">Проект 5 из 14 по сложности</div>
   <h1>JobRadar</h1>
   <p class="tag">агрегатор заказов с бирж фриланса и вакансий с оценкой релевантности</p>
   <div class="meta"><span class="state live"><i></i>в работе каждый день</span><span class="fact">июль 2026 — август 2026 · 6 дней с правками</span><span class="fact">один: от постановки до эксплуатации</span></div>
   <p class="lead">Обход бирж фриланса, сайтов вакансий и Telegram-каналов вручную занимал часы ради нескольких подходящих предложений. Сервис сводит их в одну ленту с оценкой 0–100.</p>
+  <div class="links"><a class="more code" href="https://github.com/sergeygubskiy/jobradar" rel="noopener" target="_blank">Код на GitHub →</a></div>
 </header>
 
 <section>
@@ -316,6 +321,7 @@ footer { margin-top: 60px; padding-top: 22px; border-top: 1px solid var(--rule);
     <p>Покажу любую систему вживую за 15 минут: рабочий экран, логи и разбор решений, а не слайды.</p>
     <p class="sub">Напишите на почту — отвечаю в течение дня.</p>
     <a class="mail" href="mailto:sergey.gubskiy1@gmail.com?subject=%D0%92%D0%B0%D0%BA%D0%B0%D0%BD%D1%81%D0%B8%D1%8F%20/%20%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82%3A%20AI-%D0%B8%D0%BD%D1%82%D0%B5%D0%B3%D1%80%D0%B0%D1%86%D0%B8%D1%8F%20%D0%B8%20%D0%B0%D0%B2%D1%82%D0%BE%D0%BC%D0%B0%D1%82%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F">sergey.gubskiy1@gmail.com</a>
+    <p class="sub">Код проектов открыт: <a href="https://github.com/sergeygubskiy" rel="noopener" target="_blank">github.com/sergeygubskiy</a></p>
   </div>
 </section>
 
