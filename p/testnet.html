@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RankLab — ETL, признаки и ранжирование с проверкой модели во времени</title>
+<meta name="description" content="Сбор данных о проектах из разрозненных источников, признаки и модель ранжирования — с честной проверкой во времени: первые высокие метрики оказались утечкой данных, и пайплайн пересобран.">
+<meta property="og:title" content="RankLab — ETL, признаки и ранжирование с проверкой модели во времени">
+<meta property="og:description" content="Сбор данных о проектах из разрозненных источников, признаки и модель ранжирования — с честной проверкой во времени: первые высокие метрики оказались утечкой данных, и пайплайн пересобран.">
+<meta property="og:type" content="website">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+:root {
+  --ground: #F6F7FA;
+  --surface: #FFFFFF;
+  --surface-2: #F0F3F8;
+  --rule: #DCE2EC;
+  --rule-soft: #E9EDF4;
+  --text: #0F1720;
+  --muted: #56657A;
+  --accent: #2F5FE0;
+  --ok: #17794C;
+  --shadow: 0 1px 2px rgba(16,23,32,.05), 0 8px 24px rgba(16,23,32,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0A0E15;
+    --surface: #111822;
+    --surface-2: #161F2B;
+    --rule: #242E3D;
+    --rule-soft: #1A2331;
+    --text: #E7ECF3;
+    --muted: #8DA0B6;
+    --accent: #8AB0FF;
+    --ok: #4FCB8B;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0A0E15; --surface: #111822; --surface-2: #161F2B;
+  --rule: #242E3D; --rule-soft: #1A2331; --text: #E7ECF3; --muted: #8DA0B6;
+  --accent: #8AB0FF; --ok: #4FCB8B;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--ground); color: var(--text);
+  font: 400 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 48px 16px 88px; }
+@media (min-width: 720px) { .wrap { padding: 64px 28px 104px; } }
+
+.mark {
+  font: 600 11.5px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; gap: 10px;
+}
+.mark::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+
+/* Надзаголовок вместо прежней зелёной плашки: то же перечисление ролей,
+   но без просительной интонации. */
+.roles {
+  margin: 22px 0 0; font-size: clamp(14.5px, 2.2vw, 16px); font-weight: 560;
+  color: var(--ok); letter-spacing: -.005em;
+}
+h1 {
+  margin: 16px 0 0; font-size: clamp(28px, 5.2vw, 46px); font-weight: 660;
+  line-height: 1.08; letter-spacing: -.024em; text-wrap: balance; max-width: 22ch;
+}
+.lead { margin: 18px 0 0; font-size: clamp(16px, 2.4vw, 19px); color: var(--muted); max-width: 62ch; }
+.lead b { color: var(--text); font-weight: 600; }
+
+.cta { display: flex; flex-wrap: wrap; gap: 10px; margin: 26px 0 0; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+  border-radius: 10px; padding: 12px 18px; font-size: 16px; font-weight: 580;
+  border: 1px solid var(--rule); background: var(--surface); color: var(--text);
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn:hover { border-color: var(--accent); }
+
+.nums { display: grid; gap: 12px; margin: 32px 0 0;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.num {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 12px;
+  padding: 16px 18px; box-shadow: var(--shadow);
+}
+/* Плитка читается сверху вниз: число — утверждение — из чего оно сложилось.
+   Утверждение набрано текстовым цветом: это ответ работодателю, а число
+   под ним — доказательство, а не заголовок. */
+.num b {
+  display: block; font-size: clamp(18px, 2.5vw, 21px); font-weight: 680;
+  line-height: 1.25; letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+}
+.num span { display: block; margin-top: 7px; font-size: 14.5px; font-weight: 540;
+            color: var(--text); line-height: 1.4; }
+.num em { display: block; margin-top: 8px; font-style: normal; font-size: 12.5px;
+          color: var(--muted); line-height: 1.4; }
+
+section { margin-top: 60px; }
+h2 {
+  margin: 0 0 22px;
+  font: 600 11.5px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; gap: 10px;
+}
+h2::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+
+.solutions { display: grid; gap: 12px; }
+@media (min-width: 800px) { .solutions { grid-template-columns: 1fr 1fr; } }
+.sol { background: var(--surface); border: 1px solid var(--rule);
+       border-radius: 12px; padding: 16px 18px 18px; }
+.sol h3 { margin: 0 0 6px; font-size: 16.5px; font-weight: 640; letter-spacing: -.01em; }
+.sol p { margin: 0; font-size: 15px; color: var(--muted); }
+.sol .proofs { margin: 10px 0 0; font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+.sol .proofs a { text-decoration: none; border-bottom: 1px solid currentColor; }
+
+/* Одна колонка, а не две: порядок карточек — это и есть продажа (сначала
+   самое крупное), а в двух колонках читатель видит наверху справа восьмую
+   карточку и порядок теряется. Снимок уезжает влево. */
+.cases { display: flex; flex-direction: column; gap: 16px; }
+
+.case {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 14px;
+  overflow: hidden; box-shadow: var(--shadow);
+}
+.case.top { border-color: color-mix(in oklab, var(--accent) 35%, var(--rule)); }
+/* Фон у картинок нарисован внутри самого файла, поэтому рамки и подложки
+   тут нет: иначе получится рамка в рамке. */
+.pic { display: block; margin: 0; background: var(--ground);
+       border-bottom: 1px solid var(--rule-soft); }
+.pic img {
+  display: block; width: 100%; height: auto; -webkit-user-drag: none;
+  user-select: none;
+}
+.pic figcaption { padding: 10px 14px 12px; font-size: 13.5px; color: var(--muted); }
+.case .body { padding: 20px 20px 22px; }
+.case h3 { margin: 0; font-size: 21px; font-weight: 660; letter-spacing: -.014em;
+           line-height: 1.22; text-wrap: balance; }
+.case h3 a { color: inherit; text-decoration: none; }
+.case h3 a:hover { color: var(--accent); }
+.tag { margin: 5px 0 0; font-size: 15.5px; color: var(--muted); max-width: 60ch; }
+/* Снимки внутри карточки: схема наверху объясняет систему, живые экраны
+   идут под текстом — они доказывают, что она существует. */
+.case .gallery { margin: 18px 0 0; }
+.case .gallery figure { background: var(--ground); }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0 0; }
+.state {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: 500 12px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--muted); border: 1px solid var(--rule); border-radius: 999px;
+  padding: 6px 10px;
+}
+.state.live { color: var(--ok); border-color: color-mix(in oklab, var(--ok) 40%, var(--rule)); }
+.state i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.fact { font-size: 13.5px; color: var(--muted); }
+.lbl {
+  display: block; margin: 0 0 4px;
+  font: 600 10.5px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--accent);
+}
+.row { margin: 14px 0 0; font-size: 15.5px; max-width: 74ch; }
+.row:first-of-type { margin-top: 16px; }
+.sell { font-size: 16.5px; font-weight: 560; }
+.res, .how { margin: 0; padding-left: 18px; font-size: 15.5px; color: var(--muted); }
+.res li, .how li { margin: 6px 0; }
+/* «Стек и зачем»: слева название, за тире — работа технологии в системе.
+   Список без маркеров: маркер тут лишний шум, названия и так выделены. */
+.roles-list { margin: 0; padding: 0; list-style: none; font-size: 15px;
+              color: var(--muted); }
+.roles-list li { margin: 7px 0; line-height: 1.45; }
+.roles-list b { color: var(--text); font-weight: 600;
+                font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+                font-size: 14px; }
+.grp .roles-list { font-size: 14.5px; }
+.scale { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 0; }
+.sc { background: var(--surface-2); border: 1px solid var(--rule-soft);
+      border-radius: 10px; padding: 10px 12px; min-width: 130px; }
+.sc b { display: block; font-size: 18px; font-weight: 660;
+        font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.sc span { display: block; margin-top: 3px; font-size: 13px; color: var(--muted); line-height: 1.4; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0 0; }
+.chip {
+  font: 500 12.5px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--muted); background: var(--surface-2);
+  border: 1px solid var(--rule-soft); border-radius: 999px; padding: 6px 10px;
+}
+.chip.strong { color: var(--text); border-color: var(--rule); }
+.more { display: inline-block; margin: 18px 0 0; font-size: 15.5px; font-weight: 560;
+        text-decoration: none; }
+.more:hover { text-decoration: underline; }
+
+/* Колонки: у групп разная высота, в сетке последняя висела бы одна. */
+.stack { column-gap: 14px; }
+@media (min-width: 720px) { .stack { column-count: 2; } }
+@media (min-width: 1000px) { .stack { column-count: 3; } }
+.grp { background: var(--surface); border: 1px solid var(--rule);
+       border-radius: 12px; padding: 16px 18px 18px;
+       break-inside: avoid; margin: 0 0 14px; }
+.grp h3 { margin: 0 0 14px; font-size: 15px; font-weight: 640; letter-spacing: -.008em; }
+.lvl + .lvl { margin-top: 14px; }
+.lvl .chips { margin-top: 0; }
+.chip em {
+  font-style: normal; margin-left: 6px; padding-left: 6px; opacity: .65;
+  border-left: 1px solid currentColor; font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.legend { margin: 0 0 22px; font-size: 14.5px; color: var(--muted); max-width: 72ch; }
+
+.practices { display: grid; gap: 14px; }
+@media (min-width: 900px) { .practices { grid-template-columns: 1fr 1fr; } }
+.pr { background: var(--surface); border: 1px solid var(--rule);
+      border-radius: 12px; padding: 18px 20px 20px; }
+.pr h3 { margin: 0 0 8px; font-size: 16.5px; font-weight: 640; letter-spacing: -.01em; }
+.pr p { margin: 0; font-size: 15.5px; color: var(--text); }
+.pr .proof {
+  margin: 12px 0 0; padding-left: 12px; font-size: 14.5px; color: var(--muted);
+  border-left: 2px solid color-mix(in oklab, var(--accent) 45%, var(--rule));
+}
+
+.about { background: var(--surface); border: 1px solid var(--rule);
+         border-radius: 14px; padding: 20px 22px; max-width: 78ch; }
+.about p { margin: 0 0 10px; font-size: 16px; color: var(--text); }
+.about p:last-child { margin: 0; color: var(--muted); }
+
+.contact {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 14px;
+  padding: 24px 22px; box-shadow: var(--shadow); max-width: 720px;
+}
+.contact p { margin: 0 0 14px; color: var(--text); font-size: 16.5px; }
+.contact p.sub { color: var(--muted); font-size: 15px; }
+.contact a.mail {
+  display: inline-block; font: 600 17px/1.2 ui-monospace, "SF Mono", Menlo, monospace;
+  text-decoration: none; border: 1px solid var(--rule); border-radius: 10px;
+  padding: 12px 16px; background: var(--surface-2); word-break: break-all;
+}
+.contact a.mail:hover { border-color: var(--accent); }
+
+.back { margin: 0 0 8px; font-size: 15px; }
+.back a { text-decoration: none; }
+.gallery { display: grid; gap: 14px; }
+@media (min-width: 900px) { .gallery.multi { grid-template-columns: 1fr 1fr; } }
+.gallery figure { margin: 0; border: 1px solid var(--rule); border-radius: 12px;
+                  overflow: hidden; background: var(--surface); }
+
+footer { margin-top: 60px; padding-top: 22px; border-top: 1px solid var(--rule);
+         color: var(--muted); font-size: 14.5px; max-width: 72ch; }
+
+.pic.diagram img { cursor: zoom-in; }
+.pic.diagram figcaption::after { content: " · нажмите, чтобы открыть крупно";
+                                 opacity: .7; }
+#lb {
+  position: fixed; inset: 0; background: rgba(6,9,14,.94); z-index: 20;
+  display: none; align-items: center; justify-content: center; padding: 16px;
+  cursor: zoom-out; overflow: auto;
+}
+#lb.on { display: flex; }
+#lb img { max-width: 100%; height: auto; border-radius: 10px; }
+
+#hint {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(8px);
+  background: var(--surface); color: var(--text); border: 1px solid var(--rule);
+  border-radius: 999px; padding: 10px 16px; font-size: 14px; box-shadow: var(--shadow);
+  opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease;
+  z-index: 10; max-width: calc(100vw - 32px); text-align: center;
+}
+#hint.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<p class="back"><a href="../index.html">← Все проекты</a></p>
+<header>
+  <div class="mark">Проект 15 из 15 по сложности</div>
+  <h1>RankLab</h1>
+  <p class="tag">ETL, признаки и ранжирование с проверкой модели во времени</p>
+  <div class="meta"><span class="state"><i></i>сделано, сейчас не используется</span><span class="fact">один: от постановки до готового результата</span></div>
+  <p class="lead">Первые метрики модели оказались утечкой данных из будущего. Конвейер пересобран так, чтобы модель проверялась во времени.</p>
+</header>
+
+<section>
+  <h2>Было → стало</h2>
+  <p class="row"><span class="lbl">Что мешало</span>Высокий AUC на перемешанных данных не значит ничего, а по отчёту это не видно.</p>
+  <p class="row"><span class="lbl">Что сделал</span>Собрал сбор данных, расчёт признаков и модель ранжирования с проверкой во времени, нашёл утечку данных в первой версии и пересобрал конвейер.</p>
+  <div class="row"><span class="lbl">Масштаб</span><div class="scale"><div class="sc"><b>0.576</b><span>честный AUC после чистки против 0.430 у случайного уровня</span></div></div></div>
+</section>
+
+<section>
+  <h2>Как устроено</h2>
+  <div class="row"><ul class="how"><li>Данные из разрозненных источников сводятся в одну таблицу признаков.</li><li>Модель проверяется во времени: обучение на прошлом, оценка на будущем.</li><li>Каждая метрика сравнивается со случайным уровнем.</li></ul></div>
+  <div class="row"><span class="lbl">Инженерные решения</span><ul class="how"><li>Ранний результат AUC 0.828 оказался утечкой данных; после чистки модель даёт 0.576 против 0.430 у случайного уровня.</li></ul></div>
+</section>
+
+<section>
+  <h2>Результаты</h2>
+  <p class="legend">Числа сняты с работающей системы и её базы. Наружу идут
+  только те результаты, которые можно показать кому угодно.</p>
+  <ul class="res"><li>Ранний «прорыв» AUC 0.828 оказался утечкой данных; после чистки модель даёт честные 0.576 против 0.430 у случайного уровня.</li></ul>
+</section>
+
+<section><h2>Стек и зачем</h2><div class="stack"><div class="grp"><h3>Данные и базы</h3><ul class="roles-list"><li><b>SQLite</b> — локальное хранилище: единая схема и миграции</li><li><b>pandas</b> — таблицы признаков и разрезы данных</li><li><b>sklearn</b> — признаки, метрики и валидация модели</li></ul></div></div></section>
+
+<section id="shots"><h2>Как это выглядит</h2><div class="gallery"><figure class="pic diagram"><img src="../img/shot-21.webp" srcset="../img/shot-21.webp 1x, ../img/shot-21@2x.webp 2x" width="1800" height="367" loading="lazy" decoding="async" draggable="false" data-full="../img/shot-21@2x.webp" alt="Как работает RankLab: сводит данные о проектах в таблицу признаков и ранжирует их моделью с проверкой во времени"><figcaption>Как работает RankLab: сводит данные о проектах в таблицу признаков и ранжирует их моделью с проверкой во времени</figcaption></figure></div></section>
+
+<section id="contact">
+  <h2>Связаться</h2>
+  <div class="contact">
+    <p>Покажу любую систему вживую за 15 минут: рабочий экран, логи и разбор решений, а не слайды.</p>
+    <p class="sub">Напишите на почту — отвечаю в течение дня.</p>
+    <a class="mail" href="mailto:sergey.gubskiy1@gmail.com?subject=%D0%92%D0%B0%D0%BA%D0%B0%D0%BD%D1%81%D0%B8%D1%8F%20/%20%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82%3A%20AI-%D0%B8%D0%BD%D1%82%D0%B5%D0%B3%D1%80%D0%B0%D1%86%D0%B8%D1%8F%20%D0%B8%20%D0%B0%D0%B2%D1%82%D0%BE%D0%BC%D0%B0%D1%82%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F">sergey.gubskiy1@gmail.com</a>
+  </div>
+</section>
+
+<footer>
+  Это собственный продукт, а не заказ: систему можно открыть и разобрать
+  по частям на созвоне. Снимки экранов уменьшены, часть данных на них скрыта.
+</footer>
+</div>
+<div id="lb" role="dialog" aria-label="Схема крупно"><img alt="Схема архитектуры крупно"></div>
+<div id="hint" role="status" aria-live="polite">Скриншот из рабочей системы</div>
+<script>
+(function () {
+  var box = document.getElementById('lb');
+  if (box) {
+    var full = box.querySelector('img');
+    document.addEventListener('click', function (e) {
+      var img = e.target.closest ? e.target.closest('.pic.diagram img') : null;
+      if (img && img.dataset.full) {
+        full.src = img.dataset.full;
+        box.classList.add('on');
+        return;
+      }
+      if (box.classList.contains('on')) { box.classList.remove('on'); }
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { box.classList.remove('on'); }
+    });
+  }
+  var hint = document.getElementById('hint');
+  if (!hint) return;
+  var timer = null;
+  document.addEventListener('contextmenu', function (e) {
+    var img = e.target.closest ? e.target.closest('.pic img') : null;
+    if (!img) return;
+    e.preventDefault();
+    hint.classList.add('on');
+    clearTimeout(timer);
+    timer = setTimeout(function () { hint.classList.remove('on'); }, 2600);
+  });
+})();
+</script>
+</body>
+</html>
