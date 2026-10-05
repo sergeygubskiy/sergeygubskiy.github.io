@@ -276,7 +276,90 @@ footer { margin-top: 60px; padding-top: 22px; border-top: 1px solid var(--rule);
 #hint.on { opacity: 1; transform: translateX(-50%) translateY(0); }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
+  html { scroll-behavior: auto !important; }
 }
+
+/* Липкое якорное меню. Прозрачность через color-mix, чтобы тема (светлая/тёмная)
+   подхватывалась из токенов, а не из второго набора цветов. */
+html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+.anchors {
+  position: sticky; top: 0; z-index: 8;
+  background: color-mix(in oklab, var(--ground) 90%, transparent);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.anchors-in {
+  max-width: 1080px; margin: 0 auto; padding: 0 16px;
+  display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none;
+}
+.anchors-in::-webkit-scrollbar { display: none; }
+@media (min-width: 720px) { .anchors-in { padding: 0 28px; } }
+.anchors a {
+  flex: none; padding: 14px 12px; font-size: 14.5px; font-weight: 560;
+  color: var(--muted); text-decoration: none; white-space: nowrap;
+}
+.anchors a:hover { color: var(--accent); }
+
+/* Свёрнутая карточка — нативный details, поэтому работает без скрипта и с клавиатуры.
+   Тизер (имя, оффер, статус) виден всегда; числа, чипы и миниатюра — только
+   пока карточка закрыта, в открытой те же данные стоят ниже полным видом. */
+.case details > summary { list-style: none; cursor: pointer; display: block;
+                          padding: 20px 20px 18px; }
+.case details > summary::-webkit-details-marker { display: none; }
+.case details > summary:focus-visible { outline: 2px solid var(--accent);
+                                        outline-offset: -4px; border-radius: 14px; }
+.case details[open] > summary { border-bottom: 1px solid var(--rule-soft); }
+.tz { display: grid; gap: 14px; }
+@media (min-width: 720px) {
+  .tz.has-thumb { grid-template-columns: minmax(0, 1fr) 250px; column-gap: 24px;
+                  align-items: start; }
+  .case details[open] .tz.has-thumb { grid-template-columns: minmax(0, 1fr); }
+}
+.tz h3 { margin: 0; }
+.tz .offer { margin: 6px 0 0; font-size: 16px; color: var(--text); max-width: 64ch; }
+.tz .meta { margin-top: 12px; }
+.tz-nums { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+.tz-num { background: var(--surface-2); border: 1px solid var(--rule-soft);
+          border-radius: 10px; padding: 8px 11px; }
+.tz-num b { font-size: 17px; font-weight: 660; font-variant-numeric: tabular-nums;
+            letter-spacing: -.01em; margin-right: 6px; }
+.tz-num span { font-size: 13px; color: var(--muted); }
+.tz-best { margin: 14px 0 0; font-size: 14.5px; color: var(--muted);
+           padding-left: 12px; border-left: 2px solid var(--rule); }
+.tz .chips { margin-top: 14px; }
+.tz-thumb { margin: 0; border: 1px solid var(--rule-soft); border-radius: 10px;
+            overflow: hidden; background: var(--ground); }
+.tz-thumb img { display: block; width: 100%; height: auto; }
+.tz-toggle { display: inline-block; margin-top: 14px; font-size: 14.5px;
+             font-weight: 580; color: var(--accent); }
+.tz-toggle .t-open, .case details[open] .tz-toggle .t-closed { display: none; }
+.case details[open] .tz-toggle .t-open { display: inline; }
+.case details[open] .tz-x { display: none; }
+.case .full .body { padding-top: 6px; }
+
+/* Повторный призыв между карточками. */
+.cta-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px;
+  background: var(--surface-2); border: 1px dashed var(--rule);
+  border-radius: 14px; padding: 16px 20px;
+}
+.cta-row p { margin: 0; flex: 1 1 260px; font-size: 16px; font-weight: 560; }
+.cta-row .cta { margin: 0; }
+.cta-row .btn { padding: 10px 16px; font-size: 15px; }
+
+/* Стек: два слоя с разным происхождением. */
+.layer + .layer { margin-top: 34px; }
+.layer-t { margin: 0 0 6px; font-size: 17px; font-weight: 650; letter-spacing: -.01em; }
+.layer-src { display: inline-block; margin: 0 0 10px;
+             font: 600 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+             letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.own { background: var(--surface); border: 1px solid var(--rule);
+       border-radius: 12px; padding: 16px 18px 18px; }
+.own .lvl .chips { margin-top: 0; }
+.chip.own-good { color: var(--text); border-color: var(--accent); }
+.chip.own-mid { color: var(--text); }
+.chip.own-soon { border-style: dashed; }
+.contact .cta { margin: 16px 0 14px; }
 </style>
 </head>
 <body>
@@ -319,8 +402,9 @@ footer { margin-top: 60px; padding-top: 22px; border-top: 1px solid var(--rule);
   <h2>Связаться</h2>
   <div class="contact">
     <p>Покажу любую систему вживую за 15 минут: рабочий экран, логи и разбор решений, а не слайды.</p>
-    <p class="sub">Напишите на почту — отвечаю в течение дня.</p>
+    <p class="sub">Напишите на почту или в Telegram — отвечаю в течение дня.</p>
     <a class="mail" href="mailto:sergey.gubskiy1@gmail.com?subject=%D0%92%D0%B0%D0%BA%D0%B0%D0%BD%D1%81%D0%B8%D1%8F%20/%20%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82%3A%20AI-%D0%B8%D0%BD%D1%82%D0%B5%D0%B3%D1%80%D0%B0%D1%86%D0%B8%D1%8F%20%D0%B8%20%D0%B0%D0%B2%D1%82%D0%BE%D0%BC%D0%B0%D1%82%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F">sergey.gubskiy1@gmail.com</a>
+    <div class="cta"><a class="btn primary" href="https://t.me/Sergey_Gubskiy" rel="noopener" target="_blank">Написать в Telegram</a><a class="btn" href="../resume.pdf">Скачать резюме (PDF)</a></div>
     <p class="sub">Код проектов открыт: <a href="https://github.com/sergeygubskiy" rel="noopener" target="_blank">github.com/sergeygubskiy</a></p>
   </div>
 </section>
