@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CareerMatch — ИИ-помощник поиска работы: отбор вакансий и письма с проверкой фактов</title>
+<meta name="description" content="ИИ-помощник для собственного поиска работы: каждый день собирает вакансии и заказы с 31 площадки, убирает закрытые и заведомо неподходящие, оценивает соответствие и готовит сопроводительные письма, где каждое утверждение обо мне проверяется по фактам.">
+<meta property="og:title" content="CareerMatch — ИИ-помощник поиска работы: отбор вакансий и письма с проверкой фактов">
+<meta property="og:description" content="ИИ-помощник для собственного поиска работы: каждый день собирает вакансии и заказы с 31 площадки, убирает закрытые и заведомо неподходящие, оценивает соответствие и готовит сопроводительные письма, где каждое утверждение обо мне проверяется по фактам.">
+<meta property="og:type" content="website">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+:root {
+  --ground: #F6F7FA;
+  --surface: #FFFFFF;
+  --surface-2: #F0F3F8;
+  --rule: #DCE2EC;
+  --rule-soft: #E9EDF4;
+  --text: #0F1720;
+  --muted: #56657A;
+  --accent: #2F5FE0;
+  --ok: #17794C;
+  --shadow: 0 1px 2px rgba(16,23,32,.05), 0 8px 24px rgba(16,23,32,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0A0E15;
+    --surface: #111822;
+    --surface-2: #161F2B;
+    --rule: #242E3D;
+    --rule-soft: #1A2331;
+    --text: #E7ECF3;
+    --muted: #8DA0B6;
+    --accent: #8AB0FF;
+    --ok: #4FCB8B;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0A0E15; --surface: #111822; --surface-2: #161F2B;
+  --rule: #242E3D; --rule-soft: #1A2331; --text: #E7ECF3; --muted: #8DA0B6;
+  --accent: #8AB0FF; --ok: #4FCB8B;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--ground); color: var(--text);
+  font: 400 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 48px 16px 88px; }
+@media (min-width: 720px) { .wrap { padding: 64px 28px 104px; } }
+
+.mark {
+  font: 600 11.5px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; gap: 10px;
+}
+.mark::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+
+/* Надзаголовок вместо прежней зелёной плашки: то же перечисление ролей,
+   но без просительной интонации. */
+.roles {
+  margin: 22px 0 0; font-size: clamp(14.5px, 2.2vw, 16px); font-weight: 560;
+  color: var(--ok); letter-spacing: -.005em;
+}
+h1 {
+  margin: 16px 0 0; font-size: clamp(28px, 5.2vw, 46px); font-weight: 660;
+  line-height: 1.08; letter-spacing: -.024em; text-wrap: balance; max-width: 22ch;
+}
+.lead { margin: 18px 0 0; font-size: clamp(16px, 2.4vw, 19px); color: var(--muted); max-width: 62ch; }
+.lead b { color: var(--text); font-weight: 600; }
+
+.cta { display: flex; flex-wrap: wrap; gap: 10px; margin: 26px 0 0; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+  border-radius: 10px; padding: 12px 18px; font-size: 16px; font-weight: 580;
+  border: 1px solid var(--rule); background: var(--surface); color: var(--text);
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn:hover { border-color: var(--accent); }
+
+.nums { display: grid; gap: 12px; margin: 32px 0 0;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.num {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 12px;
+  padding: 16px 18px; box-shadow: var(--shadow);
+}
+/* Плитка читается сверху вниз: число — утверждение — из чего оно сложилось.
+   Утверждение набрано текстовым цветом: это ответ работодателю, а число
+   под ним — доказательство, а не заголовок. */
+.num b {
+  display: block; font-size: clamp(18px, 2.5vw, 21px); font-weight: 680;
+  line-height: 1.25; letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+}
+.num span { display: block; margin-top: 7px; font-size: 14.5px; font-weight: 540;
+            color: var(--text); line-height: 1.4; }
+.num em { display: block; margin-top: 8px; font-style: normal; font-size: 12.5px;
+          color: var(--muted); line-height: 1.4; }
+
+section { margin-top: 60px; }
+h2 {
+  margin: 0 0 22px;
+  font: 600 11.5px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; gap: 10px;
+}
+h2::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+
+.solutions { display: grid; gap: 12px; }
+@media (min-width: 800px) { .solutions { grid-template-columns: 1fr 1fr; } }
+.sol { background: var(--surface); border: 1px solid var(--rule);
+       border-radius: 12px; padding: 16px 18px 18px; }
+.sol h3 { margin: 0 0 6px; font-size: 16.5px; font-weight: 640; letter-spacing: -.01em; }
+.sol p { margin: 0; font-size: 15px; color: var(--muted); }
+.sol .proofs { margin: 10px 0 0; font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+.sol .proofs a { text-decoration: none; border-bottom: 1px solid currentColor; }
+
+/* Одна колонка, а не две: порядок карточек — это и есть продажа (сначала
+   самое крупное), а в двух колонках читатель видит наверху справа восьмую
+   карточку и порядок теряется. Снимок уезжает влево. */
+.cases { display: flex; flex-direction: column; gap: 16px; }
+
+.case {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 14px;
+  overflow: hidden; box-shadow: var(--shadow);
+}
+.case.top { border-color: color-mix(in oklab, var(--accent) 35%, var(--rule)); }
+/* Фон у картинок нарисован внутри самого файла, поэтому рамки и подложки
+   тут нет: иначе получится рамка в рамке. */
+.pic { display: block; margin: 0; background: var(--ground);
+       border-bottom: 1px solid var(--rule-soft); }
+.pic img {
+  display: block; width: 100%; height: auto; -webkit-user-drag: none;
+  user-select: none;
+}
+.pic figcaption { padding: 10px 14px 12px; font-size: 13.5px; color: var(--muted); }
+.case .body { padding: 20px 20px 22px; }
+.case h3 { margin: 0; font-size: 21px; font-weight: 660; letter-spacing: -.014em;
+           line-height: 1.22; text-wrap: balance; }
+.case h3 a { color: inherit; text-decoration: none; }
+.case h3 a:hover { color: var(--accent); }
+.tag { margin: 5px 0 0; font-size: 15.5px; color: var(--muted); max-width: 60ch; }
+/* Снимки внутри карточки: схема наверху объясняет систему, живые экраны
+   идут под текстом — они доказывают, что она существует. */
+.case .gallery { margin: 18px 0 0; }
+.case .gallery figure { background: var(--ground); }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0 0; }
+.state {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: 500 12px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--muted); border: 1px solid var(--rule); border-radius: 999px;
+  padding: 6px 10px;
+}
+.state.live { color: var(--ok); border-color: color-mix(in oklab, var(--ok) 40%, var(--rule)); }
+.state i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.fact { font-size: 13.5px; color: var(--muted); }
+.lbl {
+  display: block; margin: 0 0 4px;
+  font: 600 10.5px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--accent);
+}
+.row { margin: 14px 0 0; font-size: 15.5px; max-width: 74ch; }
+.row:first-of-type { margin-top: 16px; }
+.sell { font-size: 16.5px; font-weight: 560; }
+.res, .how { margin: 0; padding-left: 18px; font-size: 15.5px; color: var(--muted); }
+.res li, .how li { margin: 6px 0; }
+/* «Стек и зачем»: слева название, за тире — работа технологии в системе.
+   Список без маркеров: маркер тут лишний шум, названия и так выделены. */
+.roles-list { margin: 0; padding: 0; list-style: none; font-size: 15px;
+              color: var(--muted); }
+.roles-list li { margin: 7px 0; line-height: 1.45; }
+.roles-list b { color: var(--text); font-weight: 600;
+                font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+                font-size: 14px; }
+.grp .roles-list { font-size: 14.5px; }
+.scale { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 0; }
+.sc { background: var(--surface-2); border: 1px solid var(--rule-soft);
+      border-radius: 10px; padding: 10px 12px; min-width: 130px; }
+.sc b { display: block; font-size: 18px; font-weight: 660;
+        font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.sc span { display: block; margin-top: 3px; font-size: 13px; color: var(--muted); line-height: 1.4; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0 0; }
+.chip {
+  font: 500 12.5px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: var(--muted); background: var(--surface-2);
+  border: 1px solid var(--rule-soft); border-radius: 999px; padding: 6px 10px;
+}
+.chip.strong { color: var(--text); border-color: var(--rule); }
+.more { display: inline-block; margin: 18px 0 0; font-size: 15.5px; font-weight: 560;
+        text-decoration: none; }
+.more:hover { text-decoration: underline; }
+/* Ссылки под карточкой стоят рядом: «Подробнее» и «Код на GitHub» — равноправные
+   входы, и вторая не должна теряться серой строкой под первой. */
+.links { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; }
+.links .more { margin-top: 18px; }
+
+/* Колонки: у групп разная высота, в сетке последняя висела бы одна. */
+.stack { column-gap: 14px; }
+@media (min-width: 720px) { .stack { column-count: 2; } }
+@media (min-width: 1000px) { .stack { column-count: 3; } }
+.grp { background: var(--surface); border: 1px solid var(--rule);
+       border-radius: 12px; padding: 16px 18px 18px;
+       break-inside: avoid; margin: 0 0 14px; }
+.grp h3 { margin: 0 0 14px; font-size: 15px; font-weight: 640; letter-spacing: -.008em; }
+.lvl + .lvl { margin-top: 14px; }
+.lvl .chips { margin-top: 0; }
+.chip em {
+  font-style: normal; margin-left: 6px; padding-left: 6px; opacity: .65;
+  border-left: 1px solid currentColor; font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.legend { margin: 0 0 22px; font-size: 14.5px; color: var(--muted); max-width: 72ch; }
+
+.practices { display: grid; gap: 14px; }
+@media (min-width: 900px) { .practices { grid-template-columns: 1fr 1fr; } }
+.pr { background: var(--surface); border: 1px solid var(--rule);
+      border-radius: 12px; padding: 18px 20px 20px; }
+.pr h3 { margin: 0 0 8px; font-size: 16.5px; font-weight: 640; letter-spacing: -.01em; }
+.pr p { margin: 0; font-size: 15.5px; color: var(--text); }
+.pr .proof {
+  margin: 12px 0 0; padding-left: 12px; font-size: 14.5px; color: var(--muted);
+  border-left: 2px solid color-mix(in oklab, var(--accent) 45%, var(--rule));
+}
+
+.about { background: var(--surface); border: 1px solid var(--rule);
+         border-radius: 14px; padding: 20px 22px; max-width: 78ch; }
+.about p { margin: 0 0 10px; font-size: 16px; color: var(--text); }
+.about p:last-child { margin: 0; color: var(--muted); }
+
+.contact {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 14px;
+  padding: 24px 22px; box-shadow: var(--shadow); max-width: 720px;
+}
+.contact p { margin: 0 0 14px; color: var(--text); font-size: 16.5px; }
+.contact p.sub { color: var(--muted); font-size: 15px; }
+.contact a.mail {
+  display: inline-block; font: 600 17px/1.2 ui-monospace, "SF Mono", Menlo, monospace;
+  text-decoration: none; border: 1px solid var(--rule); border-radius: 10px;
+  padding: 12px 16px; background: var(--surface-2); word-break: break-all;
+}
+.contact a.mail:hover { border-color: var(--accent); }
+
+.back { margin: 0 0 8px; font-size: 15px; }
+.back a { text-decoration: none; }
+.gallery { display: grid; gap: 14px; }
+@media (min-width: 900px) { .gallery.multi { grid-template-columns: 1fr 1fr; } }
+.gallery figure { margin: 0; border: 1px solid var(--rule); border-radius: 12px;
+                  overflow: hidden; background: var(--surface); }
+
+footer { margin-top: 60px; padding-top: 22px; border-top: 1px solid var(--rule);
+         color: var(--muted); font-size: 14.5px; max-width: 72ch; }
+
+.pic.diagram img { cursor: zoom-in; }
+.pic.diagram figcaption::after { content: " · нажмите, чтобы открыть крупно";
+                                 opacity: .7; }
+#lb {
+  position: fixed; inset: 0; background: rgba(6,9,14,.94); z-index: 20;
+  display: none; align-items: center; justify-content: center; padding: 16px;
+  cursor: zoom-out; overflow: auto;
+}
+#lb.on { display: flex; }
+#lb img { max-width: 100%; height: auto; border-radius: 10px; }
+
+#hint {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(8px);
+  background: var(--surface); color: var(--text); border: 1px solid var(--rule);
+  border-radius: 999px; padding: 10px 16px; font-size: 14px; box-shadow: var(--shadow);
+  opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease;
+  z-index: 10; max-width: calc(100vw - 32px); text-align: center;
+}
+#hint.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+  html { scroll-behavior: auto !important; }
+}
+
+/* Липкое якорное меню. Прозрачность через color-mix, чтобы тема (светлая/тёмная)
+   подхватывалась из токенов, а не из второго набора цветов. */
+html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+.anchors {
+  position: sticky; top: 0; z-index: 8;
+  background: color-mix(in oklab, var(--ground) 90%, transparent);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.anchors-in {
+  max-width: 1080px; margin: 0 auto; padding: 0 16px;
+  display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none;
+}
+.anchors-in::-webkit-scrollbar { display: none; }
+@media (min-width: 720px) { .anchors-in { padding: 0 28px; } }
+.anchors a {
+  flex: none; padding: 14px 12px; font-size: 14.5px; font-weight: 560;
+  color: var(--muted); text-decoration: none; white-space: nowrap;
+}
+.anchors a:hover { color: var(--accent); }
+
+/* Свёрнутая карточка — нативный details, поэтому работает без скрипта и с клавиатуры.
+   Тизер (имя, оффер, статус) виден всегда; числа, чипы и миниатюра — только
+   пока карточка закрыта, в открытой те же данные стоят ниже полным видом. */
+.case details > summary { list-style: none; cursor: pointer; display: block;
+                          padding: 20px 20px 18px; }
+.case details > summary::-webkit-details-marker { display: none; }
+.case details > summary:focus-visible { outline: 2px solid var(--accent);
+                                        outline-offset: -4px; border-radius: 14px; }
+.case details[open] > summary { border-bottom: 1px solid var(--rule-soft); }
+.tz { display: grid; gap: 14px; }
+@media (min-width: 720px) {
+  .tz.has-thumb { grid-template-columns: minmax(0, 1fr) 250px; column-gap: 24px;
+                  align-items: start; }
+  .case details[open] .tz.has-thumb { grid-template-columns: minmax(0, 1fr); }
+}
+.tz h3 { margin: 0; }
+.tz .offer { margin: 6px 0 0; font-size: 16px; color: var(--text); max-width: 64ch; }
+.tz .meta { margin-top: 12px; }
+.tz-nums { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+.tz-num { background: var(--surface-2); border: 1px solid var(--rule-soft);
+          border-radius: 10px; padding: 8px 11px; }
+.tz-num b { font-size: 17px; font-weight: 660; font-variant-numeric: tabular-nums;
+            letter-spacing: -.01em; margin-right: 6px; }
+.tz-num span { font-size: 13px; color: var(--muted); }
+.tz-best { margin: 14px 0 0; font-size: 14.5px; color: var(--muted);
+           padding-left: 12px; border-left: 2px solid var(--rule); }
+.tz .chips { margin-top: 14px; }
+.tz-thumb { margin: 0; border: 1px solid var(--rule-soft); border-radius: 10px;
+            overflow: hidden; background: var(--ground); }
+.tz-thumb img { display: block; width: 100%; height: auto; }
+.tz-toggle { display: inline-block; margin-top: 14px; font-size: 14.5px;
+             font-weight: 580; color: var(--accent); }
+.tz-toggle .t-open, .case details[open] .tz-toggle .t-closed { display: none; }
+.case details[open] .tz-toggle .t-open { display: inline; }
+.case details[open] .tz-x { display: none; }
+.case .full .body { padding-top: 6px; }
+
+/* Повторный призыв между карточками. */
+.cta-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px;
+  background: var(--surface-2); border: 1px dashed var(--rule);
+  border-radius: 14px; padding: 16px 20px;
+}
+.cta-row p { margin: 0; flex: 1 1 260px; font-size: 16px; font-weight: 560; }
+.cta-row .cta { margin: 0; }
+.cta-row .btn { padding: 10px 16px; font-size: 15px; }
+
+/* Стек: два слоя с разным происхождением. */
+.layer + .layer { margin-top: 34px; }
+.layer-t { margin: 0 0 6px; font-size: 17px; font-weight: 650; letter-spacing: -.01em; }
+.layer-src { display: inline-block; margin: 0 0 10px;
+             font: 600 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+             letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.own { background: var(--surface); border: 1px solid var(--rule);
+       border-radius: 12px; padding: 16px 18px 18px; }
+.own .lvl .chips { margin-top: 0; }
+.chip.own-good { color: var(--text); border-color: var(--accent); }
+.chip.own-mid { color: var(--text); }
+.chip.own-soon { border-style: dashed; }
+.contact .cta { margin: 16px 0 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<p class="back"><a href="../index.html">← Все проекты</a></p>
+<header>
+  <div class="mark">Проект 2 из 15 по сложности</div>
+  <h1>CareerMatch</h1>
+  <p class="tag">ИИ-помощник поиска работы: отбор вакансий и письма с проверкой фактов</p>
+  
+  <p class="lead">Вакансии и заказы разбросаны по десяткам площадок, часть из них уже закрыта, а письмо под каждую вакансию приходится писать заново. Система ведёт поиск целиком — от сбора до готового письма.</p>
+  
+</header>
+
+<section>
+  <h2>Было → стало</h2>
+  <p class="row"><span class="lbl">Что мешало</span>Лента без оценки — это часы чтения ради нескольких подходящих вакансий, а письмо от языковой модели легко приписывает опыт, которого нет.</p>
+  <p class="row"><span class="lbl">Что сделал</span>Собрал сбор с 31 площадки, проверку «жив ли», оценку соответствия с отсевом заведомо неподходящего и письма в три шага — бриф, письмо, критик. Каждое утверждение о себе в письме сверяется с профилем фактов.</p>
+  <div class="row"><span class="lbl">Масштаб</span><div class="scale"><div class="sc"><b>23 416</b><span>вакансий и заказов собрано</span></div><div class="sc"><b>31</b><span>площадка в одном сборе</span></div><div class="sc"><b>4 842</b><span>закрытых записи снято автоматически</span></div></div></div>
+</section>
+
+<section>
+  <h2>Как устроено</h2>
+  <div class="row"><ul class="how"><li>Сбор по расписанию: открытые API, RSS и публичные страницы; упавший источник не останавливает остальные.</li><li>Закрытые вакансии и заказы снимаются проверкой «жив ли», дубли склеиваются.</li><li>Оценка соответствия по навыкам и жёстким требованиям: неподходящее отсеивается до того, как на него тратится письмо.</li><li>Письмо пишет языковая модель в три шага — бриф, письмо, критик; факты и числа обо мне берутся только из профиля.</li></ul></div>
+  <div class="row"><span class="lbl">Инженерные решения</span><ul class="how"><li>Узкое место нашёл замером: лента тормозила не из-за базы, а из-за повторных расчётов — вкладка открывается за 0,34 с вместо 1,8–2,0 с.</li><li>Аудит системы провёл в 4 независимые проверки с перепроверкой каждого числа запросом к базе; 15 найденных ошибок закрыл в тот же вечер.</li><li>Собственная база — ещё и данные о рынке: в 5 112 российских ИИ-вакансиях ИИ-агенты упомянуты в 46,1%, RAG — в 30,9%.</li><li>Автотесты: 2 857 проверок в прогоне. Красный прогон — выпуска нет.</li><li>Работает как системный сервис: автозапуск при старте машины и автоперезапуск после падения.</li></ul></div>
+</section>
+
+<section>
+  <h2>Результаты</h2>
+  <p class="legend">Числа сняты с работающей системы и её базы. Наружу идут
+  только те результаты, которые можно показать кому угодно.</p>
+  <ul class="res"><li>С августа 2026 система собрала 23 416 вакансий и заказов с 31 площадки — открытые API, RSS и публичные страницы.</li><li>Сбор идёт по расписанию: 8 062 запуска, 91,5% успешных, упавший источник не останавливает остальные.</li><li>Проверка «жив ли» сама сняла из ленты закрытые вакансии и заказы — 4 842 записи.</li></ul>
+</section>
+
+<section><h2>Стек и зачем</h2><p class="legend"><b>Языки:</b> Python 89%, HTML 11%. Доли посчитаны по файлам кода проекта.</p><p class="legend"><b>Автотесты:</b> 2 857 проверок в прогоне.</p><div class="stack"><div class="grp"><h3>AI и LLM</h3><ul class="roles-list"><li><b>Ollama</b> — локальная модель: разметка без оплаты за запрос</li><li><b>OpenAI SDK</b> — вызовы моделей по протоколу OpenAI</li><li><b>OpenRouter</b> — единый шлюз к моделям разных поставщиков</li><li><b>разработка с ИИ-агентами</b> — код пишется агентами по спецификации, а не вручную</li></ul></div><div class="grp"><h3>Python и бэкенд</h3><ul class="roles-list"><li><b>httpx</b> — HTTP-клиент: запросы к API и страницам</li><li><b>FastAPI</b> — веб-слой и внутренний API</li></ul></div><div class="grp"><h3>Данные и базы</h3><ul class="roles-list"><li><b>SQLite</b> — локальное хранилище: единая схема и миграции</li></ul></div><div class="grp"><h3>Парсинг и автоматизация</h3><ul class="roles-list"><li><b>selectolax</b> — быстрый разбор HTML</li><li><b>feedparser</b> — RSS-ленты источников</li></ul></div><div class="grp"><h3>Инфраструктура и тестирование</h3><ul class="roles-list"><li><b>pytest</b> — автотесты: прогон перед каждым выпуском</li><li><b>launchd</b> — автозапуск и автоперезапуск сервиса</li><li><b>скрипты деплоя</b> — скрипты развёртывания и обновления</li><li><b>git</b> — версионирование и откат изменений</li></ul></div><div class="grp"><h3>Фронт и дашборды</h3><ul class="roles-list"><li><b>vanilla JS</b> — интерфейс без фреймворка</li></ul></div></div></section>
+
+<section id="shots"><h2>Как это выглядит</h2><div class="gallery"><figure class="pic diagram"><img src="../img/shot-02.webp" srcset="../img/shot-02.webp 1x, ../img/shot-02@2x.webp 2x" width="1800" height="509" loading="lazy" decoding="async" draggable="false" data-full="../img/shot-02@2x.webp" alt="Как работает CareerMatch: собирает вакансии и заказы с 31 площадки, убирает закрытые и неподходящие, оценивает соответствие и готовит письмо с проверкой фактов"><figcaption>Как работает CareerMatch: собирает вакансии и заказы с 31 площадки, убирает закрытые и неподходящие, оценивает соответствие и готовит письмо с проверкой фактов</figcaption></figure></div></section>
+
+<section id="contact">
+  <h2>Связаться</h2>
+  <div class="contact">
+    <p>Покажу любую систему вживую за 15 минут: рабочий экран, логи и разбор решений, а не слайды.</p>
+    <p class="sub">Напишите на почту или в Telegram — отвечаю в течение дня.</p>
+    <a class="mail" href="mailto:sergey.gubskiy1@gmail.com?subject=%D0%92%D0%B0%D0%BA%D0%B0%D0%BD%D1%81%D0%B8%D1%8F%20/%20%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82%3A%20AI-%D0%B8%D0%BD%D1%82%D0%B5%D0%B3%D1%80%D0%B0%D1%86%D0%B8%D1%8F%20%D0%B8%20%D0%B0%D0%B2%D1%82%D0%BE%D0%BC%D0%B0%D1%82%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F">sergey.gubskiy1@gmail.com</a>
+    <div class="cta"><a class="btn primary" href="https://t.me/Sergey_Gubskiy" rel="noopener" target="_blank">Написать в Telegram</a><a class="btn" href="../resume.pdf">Скачать резюме (PDF)</a></div>
+    <p class="sub">Код проектов открыт: <a href="https://github.com/sergeygubskiy" rel="noopener" target="_blank">github.com/sergeygubskiy</a></p>
+  </div>
+</section>
+
+<footer>
+  Это собственный продукт, а не заказ: систему можно открыть и разобрать
+  по частям на созвоне. Снимки экранов уменьшены, часть данных на них скрыта.
+</footer>
+</div>
+<div id="lb" role="dialog" aria-label="Схема крупно"><img alt="Схема архитектуры крупно"></div>
+<div id="hint" role="status" aria-live="polite">Скриншот из рабочей системы</div>
+<script>
+(function () {
+  var box = document.getElementById('lb');
+  if (box) {
+    var full = box.querySelector('img');
+    document.addEventListener('click', function (e) {
+      var img = e.target.closest ? e.target.closest('.pic.diagram img') : null;
+      if (img && img.dataset.full) {
+        full.src = img.dataset.full;
+        box.classList.add('on');
+        return;
+      }
+      if (box.classList.contains('on')) { box.classList.remove('on'); }
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { box.classList.remove('on'); }
+    });
+  }
+  var hint = document.getElementById('hint');
+  if (!hint) return;
+  var timer = null;
+  document.addEventListener('contextmenu', function (e) {
+    var img = e.target.closest ? e.target.closest('.pic img') : null;
+    if (!img) return;
+    e.preventDefault();
+    hint.classList.add('on');
+    clearTimeout(timer);
+    timer = setTimeout(function () { hint.classList.remove('on'); }, 2600);
+  });
+})();
+</script>
+</body>
+</html>
